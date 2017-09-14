@@ -1,5 +1,7 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<time.h>
+#define uol ((rand())/(RAND_MAX+1.0))
 
 struct Solution{
 	double totalCost;
@@ -135,17 +137,29 @@ void displaySolution(struct Solution *solution){
 
 }
 
+void shuffle(int *u,int n){
+	int i;	
+	for(i=0;i<n;++i){
+		int j=(int)(uol*n);
+		int temp=u[i];
+		u[i]=u[j];
+		u[j]=temp;
+
+	}
+
+}
 
 
 int main(){
 	int no_of_bids;	
 	int no_of_goods;
+	srand( time(NULL));
 	scanf("%d %d",&no_of_bids,&no_of_goods);
 	struct Bid *Bids=(struct Bid*)malloc(no_of_bids*sizeof(struct Bid));
 	int i,j;
 	for(i=0;i<no_of_bids;++i){
-		int temp;
-		scanf("%d",&temp);
+		//int temp;
+		scanf("%d",&Bids[i].sl_no);
 		scanf("%lf",&Bids[i].price);
 		Bids[i].goods=NULL;
 		char good;
@@ -172,25 +186,34 @@ int main(){
 		}
 		Bids[i].n=count;
 	}	
-	printf("\n\n\n\n");
+	//printf("\n\n\n\n");
 	/*for(i=0;i<no_of_bids;++i){
 		printf("%d %d %lf ",i,Bids[i].n,Bids[i].price);
 		displayGoods(Bids[i].goods);
 		printf("\n");
 	}*/
-	int n=1;
-	struct Solution *solutions=(struct Solution*)malloc(2*sizeof(struct Solution));
+	int n=4;
+	struct Solution *solutions=(struct Solution*)malloc(n*sizeof(struct Solution));
+	int *u=(int *)malloc(no_of_bids*sizeof(int));
+	for(i=0;i<no_of_bids;++i){
+		u[i]=i;
+	}
 	for(i=0;i<n;++i){
 		solutions[i].bids=NULL;
+		shuffle(u,no_of_bids);
 		for(j=0;j<no_of_bids;++j){
-			if(insertBid(&solutions[i].bids,&Bids[j])){
-				solutions[i].totalCost+=Bids[j].price;
+			if(insertBid(&solutions[i].bids,&Bids[u[j]])){
+				solutions[i].totalCost+=Bids[u[j]].price;
 				++(solutions[i].nBids);
 				
 			}
 			
 		}		
 	}/**/
-	displaySolution(&solutions[0]);
+	for(i=0;i<n;++i){
+		printf("\n\n*******Solution : %d ********\n",i+1);
+		displaySolution(&solutions[i]);
+
+	}
 	
 }
