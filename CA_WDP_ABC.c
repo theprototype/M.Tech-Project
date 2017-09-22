@@ -26,6 +26,10 @@ struct node{
 	struct node *link;
 };
 
+//struct Best_Solution{
+//	struct Solution *sol;
+//}
+
 int checkForConflict(struct Bid *bid1,struct Bid *bid2){
 	
 	struct node *head1=bid1->goods;
@@ -48,6 +52,7 @@ struct Bids* createBidNode(struct Bid *bid){
 	temp->bid=bid;
 	temp->link=NULL;
 }
+
 void displayGoods(struct node *root){
 	printf("\nGoods:");	
 	while(root!=NULL){
@@ -56,6 +61,7 @@ void displayGoods(struct node *root){
 	}
 	printf("\n");
 }
+
 void displayBid(struct Bid *bid){
 	printf("\nBid Price: %lf",bid->price);
 	printf("\nNo.of Goods in the Bid: %d",bid->n);
@@ -125,7 +131,7 @@ void insertGood(struct node **root,int data){
 
 void displaySolution(struct Solution *solution){
 	printf("\nTotal Cost: %lf",solution->totalCost);
-	printf("\nNo.of Bids in the solution: %d",solution->nBids);
+	printf("\nNo.of Bids in the solution: %d\n",solution->nBids);
 	int i;
 	struct Bids *bids=solution->bids;
 	while(bids){
@@ -145,6 +151,42 @@ void shuffle(int *u,int n){
 		u[i]=u[j];
 		u[j]=temp;
 
+	}
+
+}
+
+void addBid(struct Bids **root,struct Bid *bid){
+	struct Bids *temp=createBidNode(bid);	
+	if(*root==NULL)
+		*root=temp;
+	else{
+		temp->link=(*root);
+		*root=temp;
+	}
+
+}
+
+void unionSolution(struct Solution *solution,struct Solution *best_sol){
+	struct Bids *bids=best_sol->bids;
+	//struct Bids *headBid=solution->bids;
+	while(bids){
+		struct Bids *temp=solution->bids;
+		int flag=1;	
+		while(temp){
+			if(bids->bid==temp->bid){
+				//printf("here");
+				printf("\n%p %p\n",bids->bid,temp->bid);
+				flag=0;
+				break;
+			}
+			temp=temp->link;
+		}
+		if(flag){
+			printf("here");
+			addBid(&(solution->bids),bids->bid);// I think here is the mistake
+			++(solution->nBids);
+		}
+		bids=bids->link;	
 	}
 
 }
@@ -215,5 +257,36 @@ int main(){
 		displaySolution(&solutions[i]);
 
 	}
+	struct Solution *best_sol;
+	best_sol=&solutions[0];
+	for(i=0;i<n;++i){
+		if(best_sol->totalCost<solutions[i].totalCost){
+			best_sol=&solutions[i];
+		}
+		if(best_sol->totalCost==solutions[i].totalCost){
+			if(best_sol->nBids>solutions[i].nBids)
+				best_sol=&solutions[i];
+		}/**/
+
+	}
+	printf("\n\n********Best Solution *********\n");
+	displaySolution(best_sol);
+	/*for(i=0;i<no_of_bids;++i){
+		printf("\n%p\n",&Bids[i]);
+	}
+	/*printf("\n\n\n");
+	struct Bids *bids=best_sol->bids;
+	while(bids){
+		struct Bid *bid=bids->bid;
+		printf("\n%p\n",bid);
+		displayBid(bid);
+		bids=bids->link;
+	}/**/
 	
+	unionSolution(&solutions[0],best_sol);
+	printf("\n\n********After Union *********\n");
+	displaySolution(&solutions[0]);
+
+	
+	/**/
 }
