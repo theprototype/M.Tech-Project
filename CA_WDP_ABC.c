@@ -40,7 +40,13 @@ struct Set{
 
 };
 
+/* Global Declarations */
 
+int no_of_bids,no_of_goods;
+
+struct Bid *Bids; //Bids declared globally so that it is accessible any where
+struct conflictSet* *conflictBids;
+struct Solution *best_sol;
 //struct Best_Solution{
 //	struct Solution *sol;
 //}
@@ -226,11 +232,29 @@ void addBid(struct Bids **root,struct Bid *bid){
 
 }
 
-void unionSolution(struct Solution *solution,struct Solution *best_sol){
+void copySolution(struct Solution *new_sol,struct Solution *solution){
+
+    struct Bids *bids=solution->bids;
+    new_sol->nBids=solution->nBids;
+    new_sol->totalCost=solution->totalCost;
+    struct Bids *new_sol_bids=new_sol->bids;
+    while(bids){
+        addBid(&new_sol->bids,bids->bid);
+        bids=bids->link;
+    }
+}
+
+struct Solution* unionSolution(struct Solution *solution){
+    /*
+        *Modify union,repair and improve function such that they create a new solution instead of modifing the existing solution.
+        *CopySolution() - to get a new solution I am thinking to copy all the contents of solution to new solution and apply union to the new one.
+    */
+	struct Solution *new_sol=(struct Solution*)malloc(sizeof(struct Solution));
 	struct Bids *bids=best_sol->bids;
 	//struct Bids *headBid=solution->bids;
+    copySolution(new_sol,solution);
 	while(bids){
-		struct Bids *temp=solution->bids;
+		struct Bids *temp=new_sol->bids;
 		int flag=1;
 		while(temp){
 			if(bids->bid==temp->bid){
@@ -243,20 +267,21 @@ void unionSolution(struct Solution *solution,struct Solution *best_sol){
 		}
 		if(flag){
 			//printf("here");
-			addBid(&(solution->bids),bids->bid);
-            solution->totalCost+=bids->bid->price; //adding the bid price to the solution
-			++(solution->nBids);
+			addBid(&(new_sol->bids),bids->bid);
+            new_sol->totalCost+=bids->bid->price; //adding the bid price to the solution
+			++(new_sol->nBids);
 		}
 		bids=bids->link;
 	}
-
+    return new_sol;
 }
 
-
-void repairSolution(struct Solution *solution,struct conflictSet **conflictBids){
+struct Solution* repairSolution(struct Solution *solution){
+    struct Solution *new_sol=(struct Solution*)malloc(sizeof(struct Solution));
+    copySolution(new_sol,solution);
     while(1){
-        struct Bids *head=solution->bids;
-        int n=solution->nBids;
+        struct Bids *head=new_sol->bids;
+        int n=new_sol->nBids;
         int *cnt=(int*)malloc(n*sizeof(int));
         float *cost=(float*)malloc(n*sizeof(float));
         memset(cnt,0,n*sizeof(int));
@@ -264,7 +289,7 @@ void repairSolution(struct Solution *solution,struct conflictSet **conflictBids)
         while(head){
             cost[i]=head->bid->price;
             struct conflictSet *conflicts=conflictBids[head->bid->sl_no];
-            struct Bids *temp=solution->bids;
+            struct Bids *temp=new_sol->bids;
             while(temp){
                 struct conflictSet* tconflicts=conflicts;
                 while(tconflicts){
@@ -291,30 +316,35 @@ void repairSolution(struct Solution *solution,struct conflictSet **conflictBids)
             }
         }
         if(max==0)
-            return;
+            break;
         //printf("\n%d %lf\n",j,max);
-        head=solution->bids;
+        head=new_sol->bids;
         struct Bids *prev=NULL;
         while(j--){
             prev=head;
             head=head->link;
         }
-        if(head==solution->bids){
-            solution->bids=head->link;
-            solution->totalCost-=head->bid->price;
-            --(solution->nBids);
+        if(head==new_sol->bids){
+            new_sol->bids=head->link;
+            new_sol->totalCost-=head->bid->price;
+            --(new_sol->nBids);
         }
         else{
             prev->link=head->link;
-            solution->totalCost-=head->bid->price;
-            --(solution->nBids);
+            new_sol->totalCost-=head->bid->price;
+            --(new_sol->nBids);
         }
     }
+    //printf("\n%d\n",new_sol->nBids);
+    return new_sol;
 }
 
 void improveSolution(struct Solution *solution,struct Bids *bidList){
+
+	// not sure if it is completed or not
     struct Set *U=NULL;
     struct Bids *bids=bidList;
+    struct Solution *new_sol=(struct Solution*)malloc(sizeof(struct Solution));
     while(bids){
         int flag=1;
         struct Bids *head=solution->bids;
@@ -352,16 +382,155 @@ void improveSolution(struct Solution *solution,struct Bids *bidList){
     /**/
 }
 
+struct Solution* generate_random_solution(){
+    int i;
+    int *u=(int *)malloc(no_of_bids*sizeof(int));
+    for(i=0;i<no_of_bids;++i)
+		u[i]=i;
+    struct Solution *solution=(struct Solution*)malloc(sizeof(struct Solution));
+    solution->bids=NULL;
+    shuffle(u,no_of_bids);
+    for(i=0;i<no_of_bids;++i){
+        if(insertBid(&solution->bids,&Bids[u[i]])){
+            solution->totalCost+=Bids[u[i]].price;
+            ++(solution->nBids);
+
+        }
+
+    }
+    return solution;
+}
+
+struct Solution** generate_random_solutions(int ne){
+    int i,j;
+    struct Solution **solutions=(struct Solution**)malloc(ne*sizeof(struct Solution*));
+	int *u=(int *)malloc(no_of_bids*sizeof(int));
+	for(i=0;i<no_of_bids;++i){
+		u[i]=i;
+	}
+	for(i=0;i<ne;++i){
+        solutions[i]=(struct Solution*)malloc(sizeof(struct Solution));
+		solutions[i]->bids=NULL;
+		shuffle(u,no_of_bids);
+		for(j=0;j<no_of_bids;++j){
+			if(insertBid(&solutions[i]->bids,&Bids[u[j]])){
+				solutions[i]->totalCost+=Bids[u[j]].price;
+				++(solutions[i]->nBids);
+
+			}
+
+		}
+
+	}
+	/*for(i=0;i<ne;++i){
+		printf("\n\n*******Solution : %d ********\n",i+1);
+		displaySolution(&solutions[i]);
+
+	}/**/
+    return solutions;
+
+}
+
+struct Solution* get_best_sol(struct Solution *solutions,int ne){
+    int i;
+    struct Solution *best;
+	best=&solutions[0];
+    for(i=0;i<ne;++i){
+		if(best->totalCost<solutions[i].totalCost){
+			best=&solutions[i];
+		}
+		if(best->totalCost==solutions[i].totalCost){
+			if(best->nBids>solutions[i].nBids)
+				best=&solutions[i];
+		}
+
+	}
+	printf("\n\n********Best Solution *********\n");
+	displaySolution(best);
+	return best;
+}
+
+struct Solution* generate_Neighbour_Solution(struct Solution *solution){
+    struct Solution *new_sol=unionSolution(solution);
+    //printf("\n%d\n",new_sol->nBids);
+    new_sol=repairSolution(new_sol);
+    //printf("\n\n\n\n new_sol\n");
+    //displaySolution(new_sol);
+    /*
+        * need to add improveSolution() also
+    */
+    return new_sol;
+}
+
+void ABC(){
+    int i;
+
+	//generate ne random solutions
+	int ne=4,no=4;
+	int noimp=4;//no.of iterations without any update of the solution. Refer ABC algorithms for reference.
+	int *changeCount=(int*)malloc(4*sizeof(int));
+	memset(changeCount,0,ne*sizeof(int));
+    struct Solution **solutions=generate_random_solutions(ne);
+    best_sol=get_best_sol(*solutions,ne);
+    for(i=0;i<ne;++i){
+        struct Solution *new_sol=generate_Neighbour_Solution(solutions[i]);
+        //printf("\n%d\n",new_sol->nBids);
+        if(new_sol->nBids==0){
+            solutions[i]=generate_random_solution();
+        }
+        else if(new_sol->totalCost>solutions[i]->totalCost){
+            solutions[i]=new_sol;
+        }
+        else if(changeCount[i]>=noimp){
+            solutions[i]=generate_random_solution();
+        }
+        else{
+            ++changeCount[i];
+        }
+
+        if(solutions[i]->totalCost>best_sol->totalCost)
+            best_sol=solutions[i];
+    }
+    for(i=0;i<no;++i){
+        /* Implement
+            for i:=1 to no do
+                pi := Select_and_Return_Index(E1, E2,….,Ene )
+                Si := Generate_Neighboring_Solution(E pi)
+                if (Si == ∅) then
+                    artificially assign fitness worse than Epi to Si
+                if (Si is better than best_sol) then
+                    best_sol := Si
+            end for
+        */
+        //for Onlooker bees
+        //How to select_and_return_Index()
+
+
+    }
+    for(i=0;i<no;++i){
+        /* Implement
+            for i:=1 to no do
+                if (Si is better than Epi )  then
+                    E := S pi i
+            end for
+        */
+    }
+
+}
+
+
 
 
 int main(){
-	int no_of_bids;
-	int no_of_goods;
+	//int no_of_bids;
+	//int no_of_goods;
 	srand( time(NULL));
 	scanf("%d %d",&no_of_bids,&no_of_goods);
     struct Bids *bidsList=NULL;
-	struct Bid *Bids=(struct Bid*)malloc(no_of_bids*sizeof(struct Bid));
-	struct conflictSet* *conflictBids=(struct conflictSet**)malloc(no_of_bids*sizeof(struct conflictSet*));
+
+
+	Bids=(struct Bid*)malloc(no_of_bids*sizeof(struct Bid));// Bids memory is allocated here
+	conflictBids=(struct conflictSet**)malloc(no_of_bids*sizeof(struct conflictSet*));
 	int i,j;
 	for(i=0;i<no_of_bids;++i){
 		//int temp;
@@ -392,12 +561,6 @@ int main(){
 		}
 		Bids[i].n=count;
 	}
-	//printf("\n\n\n\n");
-	/*for(i=0;i<no_of_bids;++i){
-		printf("%d %d %lf ",i,Bids[i].n,Bids[i].price);
-		displayGoods(Bids[i].goods);
-		printf("\n");
-	}*/
 
 	for(i=0;i<no_of_bids;++i){
         struct Bids *temp=createBidNode(&Bids[i]);
@@ -411,32 +574,14 @@ int main(){
 	}
 
 
-	int n=4;
-	struct Solution *solutions=(struct Solution*)malloc(n*sizeof(struct Solution));
-	int *u=(int *)malloc(no_of_bids*sizeof(int));
-	for(i=0;i<no_of_bids;++i){
-		u[i]=i;
-	}
-	for(i=0;i<n;++i){
-		solutions[i].bids=NULL;
-		shuffle(u,no_of_bids);
-		for(j=0;j<no_of_bids;++j){
-			if(insertBid(&solutions[i].bids,&Bids[u[j]])){
-				solutions[i].totalCost+=Bids[u[j]].price;
-				++(solutions[i].nBids);
-
-			}
-
-		}
-	}/**/
     for(i=0;i<no_of_bids;++i){
         constructConflictSet(&conflictBids[i],&Bids[i],bidsList);
-        printf("\n\n********Conflict Set for Bid: %d",i);
-        displayConflictSet(conflictBids[i]);
+        //printf("\n\n********Conflict Set for Bid: %d",i);
+        //displayConflictSet(conflictBids[i]);
     }
-
-
-
+    ABC();
+    /*
+    int n=4;
 	for(i=0;i<n;++i){
 		printf("\n\n*******Solution : %d ********\n",i+1);
 		displaySolution(&solutions[i]);
@@ -451,24 +596,14 @@ int main(){
 		if(best_sol->totalCost==solutions[i].totalCost){
 			if(best_sol->nBids>solutions[i].nBids)
 				best_sol=&solutions[i];
-		}/**/
+		}
 
 	}
 	printf("\n\n********Best Solution *********\n");
 	displaySolution(best_sol);
-	/*for(i=0;i<no_of_bids;++i){
-		printf("\n%p\n",&Bids[i]);
-	}
-	/*printf("\n\n\n");
-	struct Bids *bids=best_sol->bids;
-	while(bids){
-		struct Bid *bid=bids->bid;
-		printf("\n%p\n",bid);
-		displayBid(bid);
-		bids=bids->link;
-	}/**/
 
-	unionSolution(&solutions[0],best_sol);
+
+	/*unionSolution(&solutions[0],best_sol);
 	printf("\n\n********After Union *********\n");
 	displaySolution(&solutions[0]);
 
