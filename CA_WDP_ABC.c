@@ -42,7 +42,7 @@ struct Set{
 
 /* Global Declarations */
 
-int no_of_bids,no_of_goods;
+int no_of_bids,no_of_goods,no_of_dummy;
 
 struct Bid *Bids; //Bids declared globally so that it is accessible any where
 struct conflictSet* *conflictBids;
@@ -445,8 +445,8 @@ struct Solution* get_best_sol(struct Solution *solutions,int ne){
 		}
 
 	}
-	printf("\n\n********Best Solution *********\n");
-	displaySolution(best);
+	//printf("\n\n********Best Solution *********\n");
+	//displaySolution(best);
 	return best;
 }
 
@@ -462,6 +462,12 @@ struct Solution* generate_Neighbour_Solution(struct Solution *solution){
     return new_sol;
 }
 
+int Select_and_Return_Index(int ne){
+
+    //return an index between 0 to ne-1;
+    return (int)(uol*ne);
+
+}
 void ABC(){
     int i;
 
@@ -477,12 +483,15 @@ void ABC(){
         //printf("\n%d\n",new_sol->nBids);
         if(new_sol->nBids==0){
             solutions[i]=generate_random_solution();
+            changeCount[i]=0;
         }
         else if(new_sol->totalCost>solutions[i]->totalCost){
             solutions[i]=new_sol;
+            changeCount[i]=0;
         }
         else if(changeCount[i]>=noimp){
             solutions[i]=generate_random_solution();
+            changeCount[i]=0;
         }
         else{
             ++changeCount[i];
@@ -491,6 +500,8 @@ void ABC(){
         if(solutions[i]->totalCost>best_sol->totalCost)
             best_sol=solutions[i];
     }
+    int *p=(int *)malloc(no*sizeof(int));
+    struct Solution **S=(struct Solution**)malloc(no*sizeof(struct Solution*));
     for(i=0;i<no;++i){
         /* Implement
             for i:=1 to no do
@@ -504,16 +515,29 @@ void ABC(){
         */
         //for Onlooker bees
         //How to select_and_return_Index()
-
+        //Epi is solutions[p[i]]
+        p[i]=Select_and_Return_Index(ne);
+        S[i]=generate_Neighbour_Solution(solutions[p[i]]);
+        if(S[i]->nBids==0){
+            //artificially assign fitness worst than Epi to S[i]
+            //S
+        }
+        if(S[i]->totalCost>best_sol->totalCost)
+            best_sol=S[i];
 
     }
     for(i=0;i<no;++i){
         /* Implement
             for i:=1 to no do
                 if (Si is better than Epi )  then
-                    E := S pi i
+                    Epi := Si
             end for
         */
+        //Here Epi is solutions[p[i]]
+
+        if(S[i]->totalCost>solutions[p[i]]->totalCost){
+            solutions[p[i]]=S[i];
+        }
     }
 
 }
@@ -524,14 +548,33 @@ void ABC(){
 int main(){
 	//int no_of_bids;
 	//int no_of_goods;
+	int i,j;
+	/*
+        Code to skip first 20 lines in input
+	*/
+	int bytes_read;
+    size_t nbytes = 100;
+    char *my_string= (char *) malloc (nbytes + 1);
+	//for(i=0;i<20;++i)
+	//	bytes_read = getline (&my_string, &nbytes, stdin);
+
+
+
 	srand( time(NULL));
-	scanf("%d %d",&no_of_bids,&no_of_goods);
+
+    /*
+        get goods,bids,dummy from input
+        we are not using dummy yet
+    */
+	scanf("%s %d",my_string,&no_of_goods);
+	scanf("%s %d",my_string,&no_of_bids);
+	scanf("%s %d",my_string,&no_of_dummy);
     struct Bids *bidsList=NULL;
 
 
 	Bids=(struct Bid*)malloc(no_of_bids*sizeof(struct Bid));// Bids memory is allocated here
 	conflictBids=(struct conflictSet**)malloc(no_of_bids*sizeof(struct conflictSet*));
-	int i,j;
+
 	for(i=0;i<no_of_bids;++i){
 		//int temp;
 		scanf("%d",&Bids[i].sl_no);
@@ -580,6 +623,7 @@ int main(){
         //displayConflictSet(conflictBids[i]);
     }
     ABC();
+    displaySolution(best_sol);
     /*
     int n=4;
 	for(i=0;i<n;++i){
