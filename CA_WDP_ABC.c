@@ -11,6 +11,7 @@ struct Solution{
 };
 
 struct Bids{
+
 	struct Bid *bid;
 	struct Bids *link;
 
@@ -50,6 +51,15 @@ struct Solution *best_sol;
 //struct Best_Solution{
 //	struct Solution *sol;
 //}
+
+int get_num_from_string(char* my_string){
+    int num=0;
+    while(my_string[0]!=' '&&my_string[0]!='\n'&&my_string[0]!='\0'){
+        num=(10*num)+my_string[0]-'0';
+        ++my_string;
+    }
+    return num;
+}
 
 int checkForConflict(struct Bid *bid1,struct Bid *bid2){ // returns 1 if there is a conflcit.
 
@@ -121,7 +131,6 @@ struct conflictSet* createConflictNode(struct Bid *bid){
     return temp;
 }
 
-
 void constructConflictSet(struct conflictSet **root,struct Bid *bid,struct Bids *bids){
 
 
@@ -147,9 +156,6 @@ void constructConflictSet(struct conflictSet **root,struct Bid *bid,struct Bids 
 			head=head->link;
 		}
 }
-
-
-
 
 struct node* createGood(int data){
 	struct node *temp=(struct node*)malloc(sizeof(struct node));
@@ -431,7 +437,7 @@ struct Solution** generate_random_solutions(int ne){
 
 }
 
-struct Solution* get_best_sol(struct Solution *solutions,int ne){
+struct Solution* find_best_sol(struct Solution *solutions,int ne){
     int i;
     struct Solution *best;
 	best=&solutions[0];
@@ -464,12 +470,20 @@ struct Solution* generate_Neighbour_Solution(struct Solution *solution){
 
 int Select_and_Return_Index(int ne){
 
+
     //return an index between 0 to ne-1;
     return (int)(uol*ne);
 
 }
 void ABC(){
     int i;
+    /*
+        * Stoping condition can be in different ways.
+        * stoping_count : no.of iterations
+        * change of best_sol: if certain no.of iterations are completed without any change in best_sol
+        * time.
+    */
+    int stoping_count=100;
 
 	//generate ne random solutions
 	int ne=4,no=4;
@@ -477,72 +491,72 @@ void ABC(){
 	int *changeCount=(int*)malloc(4*sizeof(int));
 	memset(changeCount,0,ne*sizeof(int));
     struct Solution **solutions=generate_random_solutions(ne);
-    best_sol=get_best_sol(*solutions,ne);
-    for(i=0;i<ne;++i){
-        struct Solution *new_sol=generate_Neighbour_Solution(solutions[i]);
-        //printf("\n%d\n",new_sol->nBids);
-        if(new_sol->nBids==0){
-            solutions[i]=generate_random_solution();
-            changeCount[i]=0;
-        }
-        else if(new_sol->totalCost>solutions[i]->totalCost){
-            solutions[i]=new_sol;
-            changeCount[i]=0;
-        }
-        else if(changeCount[i]>=noimp){
-            solutions[i]=generate_random_solution();
-            changeCount[i]=0;
-        }
-        else{
-            ++changeCount[i];
-        }
+    best_sol=find_best_sol(*solutions,ne);
+    while(--stoping_count){
+        for(i=0;i<ne;++i){
+            struct Solution *new_sol=generate_Neighbour_Solution(solutions[i]);
+            //printf("\n%d\n",new_sol->nBids);
+            if(new_sol->nBids==0){
+                solutions[i]=generate_random_solution();
+                changeCount[i]=0;
+            }
+            else if(new_sol->totalCost>solutions[i]->totalCost){
+                solutions[i]=new_sol;
+                changeCount[i]=0;
+            }
+            else if(changeCount[i]>=noimp){
+                solutions[i]=generate_random_solution();
+                changeCount[i]=0;
+            }
+            else{
+                ++changeCount[i];
+            }
 
-        if(solutions[i]->totalCost>best_sol->totalCost)
-            best_sol=solutions[i];
-    }
-    int *p=(int *)malloc(no*sizeof(int));
-    struct Solution **S=(struct Solution**)malloc(no*sizeof(struct Solution*));
-    for(i=0;i<no;++i){
-        /* Implement
-            for i:=1 to no do
-                pi := Select_and_Return_Index(E1, E2,….,Ene )
-                Si := Generate_Neighboring_Solution(E pi)
-                if (Si == ∅) then
-                    artificially assign fitness worse than Epi to Si
-                if (Si is better than best_sol) then
-                    best_sol := Si
-            end for
-        */
-        //for Onlooker bees
-        //How to select_and_return_Index()
-        //Epi is solutions[p[i]]
-        p[i]=Select_and_Return_Index(ne);
-        S[i]=generate_Neighbour_Solution(solutions[p[i]]);
-        if(S[i]->nBids==0){
-            //artificially assign fitness worst than Epi to S[i]
-            //S
+            if(solutions[i]->totalCost>best_sol->totalCost)
+                best_sol=solutions[i];
         }
-        if(S[i]->totalCost>best_sol->totalCost)
-            best_sol=S[i];
+        int *p=(int *)malloc(no*sizeof(int));
+        struct Solution **S=(struct Solution**)malloc(no*sizeof(struct Solution*));
+        for(i=0;i<no;++i){
+            /* Implement
+                for i:=1 to no do
+                    pi := Select_and_Return_Index(E1, E2,….,Ene )
+                    Si := Generate_Neighboring_Solution(E pi)
+                    if (Si == ∅) then
+                        artificially assign fitness worse than Epi to Si
+                    if (Si is better than best_sol) then
+                        best_sol := Si
+                end for
+            */
+            //for Onlooker bees
+            //How to select_and_return_Index()
+            //Epi is solutions[p[i]]
+            p[i]=Select_and_Return_Index(ne);
+            S[i]=generate_Neighbour_Solution(solutions[p[i]]);
+            if(S[i]->nBids==0){
+                //artificially assign fitness worst than Epi to S[i]
+                //S
+            }
+            if(S[i]->totalCost>best_sol->totalCost)
+                best_sol=S[i];
 
-    }
-    for(i=0;i<no;++i){
-        /* Implement
-            for i:=1 to no do
-                if (Si is better than Epi )  then
-                    Epi := Si
-            end for
-        */
-        //Here Epi is solutions[p[i]]
+        }
+        for(i=0;i<no;++i){
+            /* Implement
+                for i:=1 to no do
+                    if (Si is better than Epi )  then
+                        Epi := Si
+                end for
+            */
+            //Here Epi is solutions[p[i]]
 
-        if(S[i]->totalCost>solutions[p[i]]->totalCost){
-            solutions[p[i]]=S[i];
+            if(S[i]->totalCost>solutions[p[i]]->totalCost){
+                solutions[p[i]]=S[i];
+            }
         }
     }
 
 }
-
-
 
 
 int main(){
@@ -554,10 +568,20 @@ int main(){
 	*/
 	int bytes_read;
     size_t nbytes = 100;
-    char *my_string= (char *) malloc (nbytes + 1);
-	//for(i=0;i<20;++i)
-	//	bytes_read = getline (&my_string, &nbytes, stdin);
+    char *my_string;
 
+    /* These 2 lines are the heart of the program. */
+    my_string = (char *) malloc (nbytes + 1);
+
+    char str[200];
+	bytes_read = getline (&my_string, &nbytes, stdin);
+	while(my_string[0]=='%'||my_string[0]=='\n'){
+		getline (&my_string, &nbytes, stdin);
+	}
+	while(my_string[0]!=' '){
+        ++my_string;
+	}++my_string;
+    no_of_goods=get_num_from_string(my_string);
 
 
 	srand( time(NULL));
@@ -566,7 +590,7 @@ int main(){
         get goods,bids,dummy from input
         we are not using dummy yet
     */
-	scanf("%s %d",my_string,&no_of_goods);
+	//scanf("%s %d",my_string,&no_of_goods);
 	scanf("%s %d",my_string,&no_of_bids);
 	scanf("%s %d",my_string,&no_of_dummy);
     struct Bids *bidsList=NULL;
@@ -623,7 +647,11 @@ int main(){
         //displayConflictSet(conflictBids[i]);
     }
     ABC();
-    displaySolution(best_sol);
+    //displaySolution(best_sol);
+    printf("\nGoods :%d\n",no_of_goods);
+	printf("Bids: %d\n",no_of_bids);
+	printf("Dummy: %d\n",no_of_dummy);
+    printf("\n\nBest:%lf\n\n",best_sol->totalCost);
     /*
     int n=4;
 	for(i=0;i<n;++i){
