@@ -3,6 +3,10 @@
 #include<string.h>
 #include<time.h>
 #define uol ((rand())/(RAND_MAX+1.0))
+#define NE 4
+#define NO 4
+#define ABC_ITERATIONS 1
+#define LIMIT_OF_ITERATIONS_WITH_NOCHANGE 10
 
 struct Solution{
 	double totalCost;
@@ -55,7 +59,22 @@ int probabilty_take_from_best=0.5;
 //struct Best_Solution{
 //	struct Solution *sol;
 //}
+int* get_binary_goods_for_Solution(struct Solution *solution){
 
+
+    int *binary_goods_in_Solution=(int*)malloc((no_of_goods+no_of_dummy)*sizeof(int));
+    struct Bids *bids=solution->bids;
+    while(bids){
+        struct node *goods=bids->bid->goods;
+        while(goods){
+            ++(binary_goods_in_Solution[goods->good]);
+            goods=goods->link;
+        }
+
+        bids=bids->link;
+    }
+    return binary_goods_in_Solution;
+}
 int get_num_from_string(char* my_string){
     int num=0;
     while(my_string[0]!=' '&&my_string[0]!='\n'&&my_string[0]!='\0'){
@@ -299,15 +318,36 @@ struct Solution* repairSolution(struct Solution *solution){
         }*/
         double max=0;
         int j=-1;
+        /*
+            todo modify this function to use roulette wheel to select a bid
+            todo make sure while iterating this is not doing the same function again and again.We have to just remove a bid
+
+        */
+        double *roulettespace=(double*)malloc(n*sizeof(double));
+        double *probabilty=(double*)malloc(n*sizeof(double));
+        double rouletteTotal=0;
         for(i=0;i<n;++i){
-            double probabilty=cnt[i]/cost[i];
-            if(probabilty>max){
+            probabilty[i]=cnt[i]/cost[i];
+            rouletteTotal+=probabilty[i];
+            if(probabilty[i]>max){
                 j=i;
-                max=probabilty;
+                max=probabilty[i];
             }
         }
         if(max==0)
             break;
+        roulettespace[0]=probabilty[0]/rouletteTotal;
+        for(i=1;i<n;++i){
+            roulettespace[i]=roulettespace[i-1]+(probabilty[i]/rouletteTotal);
+        }
+        double rouletteSelect=uol;
+
+        for(i=0;i<n;++i){
+            if(rouletteSelect<=roulettespace[i]){
+                j=i;
+                break;
+            }
+        }
         //printf("\n%d %lf\n",j,max);
         head=new_sol->bids;
         struct Bids *prev=NULL;
@@ -374,11 +414,24 @@ void improveSolution(struct Solution *solution){
         memset(cu,0,Ubid_count*sizeof(int));
         float *cost=(float*)malloc(Ubid_count*sizeof(float));
         struct Set *tempU=U;
+
+       /*Remove from here*/
+
+       /* struct Set *tempU2=U;
+        printf("\n\n******U***********\n");
+        while(tempU2){
+            displayBid(tempU2->bid);
+            printf("\n");
+            tempU2=tempU2->link;
+        }
+        printf("\n\n");/**/
+
+        /*to here*/
         i=0;
         while(tempU){
             cost[i]=tempU->bid->price;
             struct conflictSet *conflicts=conflictBids[tempU->bid->sl_no];
-            struct Set *temp=tempU;
+            struct Set *temp=U;
             while(temp){
                 struct conflictSet* tconflicts=conflicts;
                 while(tconflicts){
@@ -391,6 +444,8 @@ void improveSolution(struct Solution *solution){
             }
             if(cu[i]==0){
                 addBid(&(solution->bids),tempU->bid);
+                ++(solution->nBids);
+                solution->totalCost+=tempU->bid->price;
                 ++add_count;
             }
             tempU=tempU->link;
@@ -399,19 +454,35 @@ void improveSolution(struct Solution *solution){
         if(Ubid_count-add_count==0){
             break;
         }
+         double *roulettespace=(double*)malloc(Ubid_count*sizeof(double));
+        double *probabilty=(double*)malloc(Ubid_count*sizeof(double));
+        double rouletteTotal=0;
         for(i=0;i<Ubid_count;++i){
             if(cu[i]==0)
                 continue;
-            double probabilty=cost[i]/cu[i];
-            if(probabilty>max){
+            probabilty[i]=cost[i]/cu[i];
+            if(probabilty[i]>max){
                 j=i;
-                max=probabilty;
+                max=probabilty[i];
+            }
+        }
+        roulettespace[0]=probabilty[0]/rouletteTotal;
+        for(i=1;i<Ubid_count;++i){
+            roulettespace[i]=roulettespace[i-1]+(probabilty[i]/rouletteTotal);
+        }
+        double rouletteSelect=uol;
+        for(i=0;i<Ubid_count;++i){
+            if(rouletteSelect<=roulettespace[i]){
+                j=i;
+                break;
             }
         }
         while(j--){
             U=U->link;
         }
         addBid(&(solution->bids),U->bid);
+        ++(solution->nBids);
+        solution->totalCost+=U->bid->price;
 
     }
     /*printf("\n\n\n\n");
@@ -550,6 +621,7 @@ int Select_and_Return_Index(int ne){
     return (int)(uol*ne);
 
 }
+
 void ABC(){
     int i;
     /*
@@ -558,11 +630,11 @@ void ABC(){
         * change of best_sol: if certain no.of iterations are completed without any change in best_sol.
         * time.
     */
-    int stoping_count=100;
+    int stoping_count=ABC_ITERATIONS;
 
 	//generate ne random solutions
-	int ne=4,no=4;
-	int noimp=4;//no.of iterations without any update of the solution. Refer ABC algorithms for reference.
+	int ne=NE,no=NO;
+	int noimp=LIMIT_OF_ITERATIONS_WITH_NOCHANGE;//no.of iterations without any update of the solution. Refer ABC algorithms for reference.
 	int *changeCount=(int*)malloc(ne*sizeof(int));
 	memset(changeCount,0,ne*sizeof(int));
     struct Solution **solutions=generate_random_solutions(ne);
@@ -699,9 +771,10 @@ int main(){
 			}
 
 			if(flag){
-				insertGood(&Bids[i].goods,res);
-				++count;
-
+                //if(res<no_of_goods){ // avoiding dummy goods for now. I think dummy good represent the bidder.
+                    insertGood(&Bids[i].goods,res);
+                    ++count;
+                //}
 			}
 			scanf("%c",&good);
 		}
@@ -731,8 +804,38 @@ int main(){
 	printf("Bids: %d\n",no_of_bids);
 	printf("Dummy: %d\n",no_of_dummy);
     printf("\n\nBest:%lf\n\n",best_sol->totalCost);
+
+    /*int *binary_goods_Solution=get_binary_goods_for_Solution(best_sol);
+    for(i=0;i<no_of_goods+no_of_dummy;++i){
+        printf("%d  ",binary_goods_Solution[i]);
+    }
+
+    printf("\n\n");
+    displaySolution(best_sol);
+    /* Remove from here*/
+
+    /*struct Solution **solutions=generate_random_solutions(4);
+    best_sol=find_best_sol(*solutions,4);
+    printf("\n\nBest:%lf\n\n",best_sol->totalCost);
+    solutions[2]=generate_Neighbour_Solution(solutions[2]);
+    printf("******solution before improve*****\n");
+    displaySolution(solutions[2]);
+    printf("\n\n\n");
+    improveSolution(solutions[2]);
+    int *binary_goods_Solution=get_binary_goods_for_Solution(solutions[2]);
+    for(i=0;i<no_of_goods+no_of_dummy;++i){
+        printf("%d  ",binary_goods_Solution[i]);
+    }
+    printf("\n\n");
+    displaySolution(solutions[2]);*/
+
+    /*To here*/
+
     free(Bids);
     free(conflictBids);
+
+
+
     /*
     int n=4;
 	for(i=0;i<n;++i){
@@ -777,6 +880,10 @@ int main(){
 
 
 /*
-    *free the memory carefully when no longer need.
+    *Things to be done*
 
+    *free the memory carefully when no longer need.
+    *check improve solution function for solution totalCost. Make sure no extra price is added. Got 4160.095900 for arbitrary_400_50_1.txt which more then the one in paper.
+        * But got 241158.000000 for L2_1000_256_2.txt everytime which is the best mentioned in paper for the instance.
+    * Considering dummys too.. no need of dummies to conside here. one way to do that is dont add a good to bid if its number is >= no_of_goods
 */
