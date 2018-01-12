@@ -3,16 +3,16 @@
 #include<string.h>
 #include<time.h>
 #define uol ((rand())/(RAND_MAX+1.0))
-#define NE 1000 //Number of Employee bees 125
-#define NO 400 //Number of Outlooker bees 125
-#define ABC_ITERATIONS 250 //Number of Iterations for ABC algorithm 350,700
-#define LIMIT_OF_ITERATIONS_WITH_NOCHANGE 10 //60 limiting the no.of iteration a solution can be without any change. After this limit we assign a random solution to it.
+#define NE 50 //Number of Employee bees 125
+#define NO 100 //Number of Outlooker bees 125
+#define ABC_ITERATIONS 350 //Number of Iterations for ABC algorithm 350,700
+#define LIMIT_OF_ITERATIONS_WITH_NOCHANGE 60 //60 limiting the no.of iteration a solution can be without any change. After this limit we assign a random solution to it.
 #define SEED 1
-#define PROB_TAKE_FROM_SOL 0.75 //0.75                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  //0.75
+#define PROB_TAKE_FROM_SOL 0.8 //0.75                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  //0.75
 #define PROB_TAKE_FROM_BEST 0.5 //0.5
 #define REPAIR 1
 
-#define ITERATE 30 // iterate by changing randoms (SEED) . we take the best of all these iteration
+#define ITERATE 10 // iterate by changing randoms (SEED) . we take the best of all these iteration
 
 
 struct Solution{// for Solution
@@ -847,6 +847,7 @@ struct Solution** generate_random_solutions(int ne){ // generates ne random solu
 		displaySolution(&solutions[i]);
 
 	}/**/
+
     return solutions;
 
 }
@@ -937,10 +938,33 @@ struct Solution* generate_Neighbour_Solution(struct Solution *solution){ // gene
     return new_sol;
 }
 
-int Select_and_Return_Index(int ne){ // Used in ABC for onlookers
-
+int Select_and_Return_Index(struct Solution **solutions,int ne){ // Used in ABC for onlookers
+    //This probabilistic selection is really a roulette wheel selection mechanism which is described as equation below:pi=fi/sigma(fi)
     //return an index between 0 to ne-1;
-    return (int)(uol*ne);
+    int i;
+    double sum_of_all_solutions=0;
+    for(i=0;i<ne;++i){
+        sum_of_all_solutions+=solutions[i]->totalCost;
+        //printf("\n\n**%lf***",solutions[i]->totalCost);
+
+    }
+
+    //printf("\n\n\n\n\n\n");
+    //printf("\n\n**%lf***",sum_of_all_solutions);
+
+    double *rouletteSpace = (double*)malloc(ne*sizeof(double));
+    rouletteSpace[0]=solutions[0]->totalCost/sum_of_all_solutions;
+    for(i=1;i<ne;++i){
+        rouletteSpace[i]=rouletteSpace[i-1]+(solutions[i]->totalCost/sum_of_all_solutions);
+    }
+    double select=uol;
+    for(i=0;i<ne;++i){
+        if(select<=rouletteSpace[i]){
+            return i;
+        }
+    }
+    //return (int)(uol*ne);
+    return ne-1;
 
 }
 
@@ -1007,7 +1031,7 @@ void ABC(){ //ABC algorithm
             */
             //for Onlooker bees
             //Epi is solutions[p[i]]
-            p[i]=Select_and_Return_Index(ne); //random number in [0,ne-1].
+            p[i]=Select_and_Return_Index(solutions,ne); //random number in [0,ne-1].
             S[i]=generate_Neighbour_Solution(solutions[p[i]]);
             if(S[i]->nBids==0){
                 //artificially assign fitness worst than Epi to S[i]
